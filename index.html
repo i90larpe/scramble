@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#14532d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Golf Scorekort</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a472a;
+    color: #222;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .tabs { display: flex; background: #14532d; flex-shrink: 0; }
+  .tab-btn {
+    padding: 10px; border: none; background: #14532d;
+    color: rgba(255,255,255,0.5); font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px;
+  }
+  .tab-btn.active { background: #166534; color: #fff; border-bottom: 3px solid #4ade80; }
+  #btn-setup { width: 80px; flex: 0 0 auto; }
+  #btn-scorekort { flex: 1 1 auto; }
+  #btn-resultat { width: 90px; flex: 0 0 auto; }
+  .tab-content { display: none; flex-direction: column; overflow: hidden; flex: 1; }
+  .tab-content.active { display: flex; }
+
+  /* SETUP */
+  .setup-fixed { flex-shrink: 0; background: #f0fdf4; padding: 10px 12px 0; }
+  .setup-fixed h2 { font-size: 0.85rem; color: #166534; margin-bottom: 8px; }
+  .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .setup-grid label { font-size: 0.75rem; color: #555; display: flex; flex-direction: column; gap: 3px; }
+  .setup-grid input { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; text-align: center; }
+  .setup-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #f0fdf4; padding: 0 12px 12px; }
+  .par-table { width: 100%; border-collapse: collapse; background: #fff; }
+  .par-table thead { position: sticky; top: 0; z-index: 2; }
+  .par-table th { background: #166534; color: #fff; font-size: 0.65rem; padding: 5px 2px; text-align: center; }
+  .par-table td { text-align: center; border: 1px solid #d1d5db; padding: 0; height: 34px; font-size: 0.8rem; }
+  .par-table td.hole-num { background: #f0fdf4; font-weight: 700; color: #166534; width: 40px; }
+  .par-table td input {
+    width: 100%; height: 100%; border: none; text-align: center;
+    font-size: 0.85rem; padding: 4px 0; background: transparent; -moz-appearance: textfield;
+  }
+  .par-table td input:focus { outline: none; background: #fef9c3; }
+  .par-table td input::-webkit-outer-spin-button,
+  .par-table td input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .par-sum {
+    margin-top: 8px; padding: 10px; background: #166534; color: #fff;
+    border-radius: 6px; text-align: center; font-size: 0.9rem; font-weight: 700;
+  }
+  .par-sum span { font-size: 1.2rem; margin-left: 6px; }
+
+  /* SCOREKORT */
+  .sc-fixed { flex-shrink: 0; }
+  .meta { display: flex; gap: 6px; padding: 6px 8px; background: #166534; }
+  .meta span {
+    padding: 6px 4px; border: none; border-radius: 4px; font-size: 0.8rem;
+    background: rgba(255,255,255,0.6); text-align: center;
+    display: flex; align-items: center; justify-content: center; color: #333;
+  }
+  .meta .short { width: 60px; flex: 0 0 auto; }
+  .meta .medium { flex: 1 1 auto; min-width: 80px; }
+  .sc-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
+  table.scorecard { width: 100%; min-width: 480px; border-collapse: collapse; background: #fff; }
+  table.scorecard thead { position: sticky; top: 0; z-index: 5; }
+  table.scorecard th {
+    background: #166534; color: #fff; font-size: 0.6rem;
+    padding: 5px 1px; text-align: center; white-space: nowrap;
+  }
+  table.scorecard td {
+    text-align: center; padding: 0; border: 1px solid #d1d5db; font-size: 0.8rem; height: 34px;
+  }
+  table.scorecard td.hole-num { background: #f0fdf4; font-weight: 700; width: 28px; color: #166534; }
+  table.scorecard td.par-cell { background: #f9fafb; font-weight: 600; width: 28px; }
+  table.scorecard td.narrow { width: 32px; }
+  table.scorecard td.stat-cell { width: 28px; }
+  table.scorecard td input {
+    width: 100%; height: 100%; border: none; text-align: center;
+    font-size: 0.8rem; padding: 4px 0; background: transparent; -moz-appearance: textfield;
+  }
+  table.scorecard td input::-webkit-outer-spin-button,
+  table.scorecard td input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  table.scorecard td input:focus { outline: none; background: #fef9c3; }
+  td.diff-cell { font-weight: 700; font-size: 0.75rem; width: 32px; }
+  .under { color: #dc2626; }
+  .over { color: #2563eb; }
+  .even { color: #6b7280; }
+  td.disabled-cell { background: #e5e7eb; }
+  td.disabled-cell input { background: #e5e7eb; pointer-events: none; }
+  tr.totals-row { background: #f0fdf4; font-weight: 700; }
+  tr.totals-row td { border-top: 2px solid #166534; font-size: 0.8rem; }
+  tr.grand-total td { background: #e2e8f0; font-weight: 800; border-top: 3px solid #14532d; }
+
+  /* RESULTAT */
+  .res-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px; background: #f0fdf4; }
+  .res-card {
+    background: #fff; border-radius: 8px; padding: 14px; margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .res-card h3 { font-size: 0.8rem; color: #166534; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .res-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; border-bottom: 1px solid #f0f0f0; }
+  .res-row:last-child { border-bottom: none; }
+  .res-label { color: #555; }
+  .res-value { font-weight: 700; color: #14532d; }
+  .freq-table { width: 100%; border-collapse: collapse; }
+  .freq-table th { text-align: left; font-size: 0.7rem; color: #888; padding: 3px 6px; border-bottom: 1px solid #e5e7eb; }
+  .freq-table td { padding: 3px 6px; font-size: 0.85rem; border-bottom: 1px solid #f0f0f0; }
+  .freq-table td:last-child { text-align: right; font-weight: 700; color: #14532d; }
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tab-btn active" id="btn-setup" data-tab="setup">Setup</button>
+  <button class="tab-btn" id="btn-scorekort" data-tab="scorekort">⛳ Scorekort</button>
+  <button class="tab-btn" id="btn-resultat" data-tab="resultat">Resultat</button>
+</div>
+
+<!-- SETUP -->
+<div id="tab-setup" class="tab-content active">
+  <div class="setup-fixed">
+    <h2>Rundinformation</h2>
+    <div class="setup-grid">
+      <label>Bana<input type="text" id="s-course"></label>
+      <label>Datum<input type="date" id="s-date"></label>
+      <label>Starttid<input type="time" id="s-time"></label>
+      <label>Längd (m)<input type="text" id="s-length" inputmode="numeric"></label>
+    </div>
+    <h2>Par per hål</h2>
+  </div>
+  <div class="setup-scroll">
+    <table class="par-table">
+      <thead><tr><th>Hål</th><th>Par</th></tr></thead>
+      <tbody id="par-body"></tbody>
+    </table>
+    <div class="par-sum">Banans par: <span id="par-total">–</span></div>
+  </div>
+</div>
+
+<!-- SCOREKORT -->
+<div id="tab-scorekort" class="tab-content">
+  <div class="sc-fixed">
+    <div class="meta">
+      <span class="medium" id="d-course">–</span>
+      <span class="short" style="width:90px" id="d-date">–</span>
+      <span class="short" id="d-time">–</span>
+      <span class="short" id="d-length">–</span>
+    </div>
+  </div>
+  <div class="sc-scroll">
+    <table class="scorecard" id="scorecard">
+      <thead><tr>
+        <th>#</th><th>Par</th><th>Slag</th><th>+/−</th>
+        <th>Fair</th><th>Green</th><th>Putt</th>
+        <th>Plängd</th><th>Utslag</th><th>Inspel</th><th>I hål</th>
+      </tr></thead>
+      <tbody id="sc-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- RESULTAT -->
+<div id="tab-resultat" class="tab-content">
+  <div class="res-scroll" id="res-content"></div>
+</div>
+
+<script>
+let pars = new Array(18).fill(0);
+
+// --- Setup ---
+const parBody = document.getElementById('par-body');
+const parInputs = [];
+for (let h = 1; h <= 18; h++) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="hole-num">${h}</td><td><input type="number" min="3" max="6" data-parhole="${h}" inputmode="numeric"></td>`;
+  parBody.appendChild(tr);
+  parInputs.push(tr.querySelector('input'));
+}
+function updateParTotal() {
+  const sum = pars.reduce((a, b) => a + b, 0);
+  document.getElementById('par-total').textContent = sum || '–';
+}
+parInputs.forEach((inp, i) => {
+  inp.addEventListener('input', () => {
+    if (inp.value.length >= 1) {
+      inp.value = inp.value.slice(-1);
+      pars[i] = parseInt(inp.value) || 0;
+      updateParTotal(); syncScorecard();
+      if (i < 17) parInputs[i + 1].focus();
+    } else { pars[i] = 0; updateParTotal(); syncScorecard(); }
+  });
+});
+
+// --- Scorecard ---
+let scInputs = [];
+function buildScorecard() {
+  const tbody = document.getElementById('sc-body');
+  tbody.innerHTML = '';
+  for (let hole = 1; hole <= 18; hole++) {
+    const tr = document.createElement('tr');
+    tr.dataset.hole = hole;
+    tr.innerHTML = `
+      <td class="hole-num">${hole}</td>
+      <td class="par-cell" data-parcell="${hole}">–</td>
+      <td class="narrow"><input type="number" min="1" max="15" data-col="strokes" data-auto="1" inputmode="numeric"></td>
+      <td class="diff-cell" data-col="diff">–</td>
+      <td class="stat-cell"><input type="text" data-col="fair" maxlength="1" data-auto="1" style="text-transform:uppercase"></td>
+      <td class="stat-cell"><input type="text" data-col="green" maxlength="1" data-auto="1" style="text-transform:uppercase"></td>
+      <td class="stat-cell"><input type="number" min="0" max="9" data-col="putts" data-auto="1" inputmode="numeric"></td>
+      <td class="stat-cell"><input type="text" data-col="plangd" maxlength="4" inputmode="decimal"></td>
+      <td class="stat-cell"><input type="text" data-col="utslag" maxlength="1" data-auto="1" style="text-transform:uppercase"></td>
+      <td class="stat-cell"><input type="text" data-col="inspel" maxlength="1" data-auto="1" style="text-transform:uppercase"></td>
+      <td class="stat-cell"><input type="text" data-col="ihal" maxlength="1" data-auto="1" style="text-transform:uppercase"></td>`;
+    tbody.appendChild(tr);
+  }
+  for (const [label, id, cls] of [['UT','front','totals-row'],['IN','back','totals-row'],['TOT','total','totals-row grand-total']]) {
+    const tr = document.createElement('tr');
+    tr.className = cls;
+    tr.innerHTML = `<td>${label}</td><td id="${id}-par"></td><td id="${id}-str"></td><td id="${id}-diff" class="diff-cell"></td><td id="${id}-fair"></td><td id="${id}-green"></td><td id="${id}-putts"></td><td id="${id}-plangd"></td><td></td><td></td><td></td>`;
+    tbody.appendChild(tr);
+  }
+  rebindAutoAdvance();
+  recalc();
+}
+
+function syncScorecard() {
+  for (let h = 1; h <= 18; h++) {
+    const cell = document.querySelector(`[data-parcell="${h}"]`);
+    if (cell) cell.textContent = pars[h - 1] || '–';
+    const tr = document.querySelector(`#scorecard tr[data-hole="${h}"]`);
+    if (!tr) continue;
+    const isPar3 = pars[h - 1] === 3;
+    const fairTd = tr.querySelector('[data-col="fair"]').parentElement;
+    const inspelTd = tr.querySelector('[data-col="inspel"]').parentElement;
+    fairTd.classList.toggle('disabled-cell', isPar3);
+    inspelTd.classList.toggle('disabled-cell', isPar3);
+    if (isPar3) {
+      tr.querySelector('[data-col="fair"]').value = '';
+      tr.querySelector('[data-col="inspel"]').value = '';
+    }
+  }
+  rebindAutoAdvance();
+  recalc();
+}
+function rebindAutoAdvance() {
+  const allInputs = Array.from(document.querySelectorAll('#scorecard tbody input'));
+  allInputs.forEach(inp => {
+    const clone = inp.cloneNode(true);
+    inp.parentNode.replaceChild(clone, inp);
+  });
+  scInputs = Array.from(document.querySelectorAll('#scorecard tbody input'));
+  const activeInputs = scInputs.filter(inp => !inp.parentElement.classList.contains('disabled-cell'));
+  scInputs.forEach(inp => {
+    if (inp.parentElement.classList.contains('disabled-cell')) return;
+    const activeIdx = activeInputs.indexOf(inp);
+    const advance = () => { if (activeIdx < activeInputs.length - 1) activeInputs[activeIdx + 1].focus(); };
+    if (inp.dataset.auto === '1' && inp.type === 'number') {
+      inp.addEventListener('input', () => {
+        if (inp.value.length >= 1) { inp.value = inp.value.slice(-1); recalc(); advance(); }
+        else recalc();
+      });
+    } else if (inp.dataset.auto === '1' && inp.type === 'text') {
+      inp.addEventListener('input', () => { if (inp.value.length >= 1) { recalc(); advance(); } else recalc(); });
+    } else {
+      inp.addEventListener('input', recalc);
+    }
+  });
+}
+
+function syncMeta() {
+  document.getElementById('d-course').textContent = document.getElementById('s-course').value || '–';
+  document.getElementById('d-date').textContent = document.getElementById('s-date').value || '–';
+  document.getElementById('d-time').textContent = document.getElementById('s-time').value || '–';
+  const l = document.getElementById('s-length').value;
+  document.getElementById('d-length').textContent = l ? l + ' m' : '–';
+}
+function parsePlangd(val) {
+  if (!val) return 0;
+  return parseFloat(val.replace(',', '.')) || 0;
+}
+
+function calcHalf(start, end) {
+  let par = 0, strokes = 0, sCount = 0;
+  let fair = 0, green = 0, putts = 0, pCount = 0, plangd = 0;
+  let cumDiff = 0;
+  for (let h = 1; h < start; h++) {
+    const tr = document.querySelector(`#scorecard tr[data-hole="${h}"]`);
+    const inp = tr.querySelector('[data-col="strokes"]');
+    if (inp.value && pars[h - 1]) cumDiff += parseInt(inp.value) - pars[h - 1];
+  }
+  for (let h = start; h <= end; h++) {
+    const tr = document.querySelector(`#scorecard tr[data-hole="${h}"]`);
+    if (!tr) continue;
+    const p = pars[h - 1];
+    par += p;
+    const strInp = tr.querySelector('[data-col="strokes"]');
+    const diff = tr.querySelector('[data-col="diff"]');
+    if (strInp.value && p) {
+      const s = parseInt(strInp.value);
+      strokes += s; sCount++;
+      cumDiff += s - p;
+      diff.textContent = cumDiff === 0 ? 'E' : (cumDiff > 0 ? '+' + cumDiff : cumDiff);
+      diff.className = 'diff-cell ' + (cumDiff < 0 ? 'under' : cumDiff > 0 ? 'over' : 'even');
+    } else { diff.textContent = '–'; diff.className = 'diff-cell'; }
+    if (tr.querySelector('[data-col="fair"]').value.toUpperCase() === 'F') fair++;
+    if (tr.querySelector('[data-col="green"]').value.toUpperCase() === 'G') green++;
+    const pv = tr.querySelector('[data-col="putts"]').value;
+    if (pv) { putts += parseInt(pv); pCount++; }
+    plangd += parsePlangd(tr.querySelector('[data-col="plangd"]').value);
+  }
+  return { par, strokes, sCount, halfDiff: sCount ? strokes - par : null, fair, green, putts, pCount, plangd };
+}
+
+function setTotals(id, data, roundPlangd) {
+  document.getElementById(id + '-par').textContent = data.par || '–';
+  document.getElementById(id + '-str').textContent = data.sCount ? data.strokes : '–';
+  const el = document.getElementById(id + '-diff');
+  if (data.halfDiff !== null) {
+    const d = data.halfDiff;
+    el.textContent = d === 0 ? 'E' : (d > 0 ? '+' + d : d);
+    el.className = 'diff-cell ' + (d < 0 ? 'under' : d > 0 ? 'over' : 'even');
+  } else { el.textContent = '–'; el.className = 'diff-cell'; }
+  document.getElementById(id + '-fair').textContent = data.fair || '';
+  document.getElementById(id + '-green').textContent = data.green || '';
+  document.getElementById(id + '-putts').textContent = data.pCount ? data.putts : '';
+  const plEl = document.getElementById(id + '-plangd');
+  if (roundPlangd) plEl.textContent = data.plangd ? Math.round(data.plangd) : '';
+  else plEl.textContent = data.plangd ? Math.round(data.plangd * 10) / 10 : '';
+}
+
+function recalc() {
+  const f = calcHalf(1, 9), b = calcHalf(10, 18);
+  setTotals('front', f, false);
+  setTotals('back', b, false);
+  const tPar = f.par + b.par;
+  const tStr = f.strokes + b.strokes;
+  const tCount = f.sCount + b.sCount;
+  const tDiff = (f.halfDiff !== null || b.halfDiff !== null) ? (f.halfDiff || 0) + (b.halfDiff || 0) : null;
+  setTotals('total', {
+    par: tPar, strokes: tStr, sCount: tCount, halfDiff: tDiff,
+    fair: f.fair + b.fair, green: f.green + b.green,
+    putts: f.putts + b.putts, pCount: f.pCount + b.pCount,
+    plangd: f.plangd + b.plangd
+  }, true);
+}
+
+// --- Resultat ---
+function buildResultat() {
+  const holes = 18;
+  let totalStrokes = 0, totalPar = 0, sCount = 0;
+  let fairCount = 0, fairEligible = 0, greenCount = 0, totalPutts = 0, pCount = 0, totalPlangd = 0;
+  const freqUtslag = {}, freqInspel = {}, freqIhal = {};
+  let girPutts = 0, girHoles = 0;
+
+  for (let h = 1; h <= holes; h++) {
+    const tr = document.querySelector(`#scorecard tr[data-hole="${h}"]`);
+    if (!tr) continue;
+    const p = pars[h - 1];
+    const sv = tr.querySelector('[data-col="strokes"]').value;
+    if (sv && p) { totalStrokes += parseInt(sv); totalPar += p; sCount++; }
+
+    const isPar3 = p === 3;
+    if (!isPar3) fairEligible++;
+    const fv = tr.querySelector('[data-col="fair"]').value.toUpperCase();
+    if (fv === 'F' && !isPar3) fairCount++;
+    const gv = tr.querySelector('[data-col="green"]').value.toUpperCase();
+    const hasGreen = gv === 'G';
+    if (hasGreen) greenCount++;
+
+    const pv = tr.querySelector('[data-col="putts"]').value;
+    if (pv) {
+      const pn = parseInt(pv);
+      totalPutts += pn; pCount++;
+      if (hasGreen) { girPutts += pn; girHoles++; }
+    }
+    totalPlangd += parsePlangd(tr.querySelector('[data-col="plangd"]').value);
+
+    const uv = tr.querySelector('[data-col="utslag"]').value.toUpperCase();
+    if (uv) freqUtslag[uv] = (freqUtslag[uv] || 0) + 1;
+    const iv = tr.querySelector('[data-col="inspel"]').value.toUpperCase();
+    if (iv) freqInspel[iv] = (freqInspel[iv] || 0) + 1;
+    const ihv = tr.querySelector('[data-col="ihal"]').value.toUpperCase();
+    if (ihv) freqIhal[ihv] = (freqIhal[ihv] || 0) + 1;
+  }
+
+  const diff = sCount ? totalStrokes - totalPar : null;
+  const diffStr = diff === null ? '–' : (diff === 0 ? 'E' : (diff > 0 ? '+' + diff : diff));
+  const fairPct = fairEligible ? Math.round(fairCount / fairEligible * 100) : 0;
+  const greenPct = Math.round(greenCount / 18 * 100);
+
+  function freqHTML(title, freq) {
+    const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+    if (!sorted.length) return '';
+    let rows = sorted.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+    return `<div class="res-card"><h3>${title}</h3><table class="freq-table"><tr><th>Typ</th><th>Antal</th></tr>${rows}</table></div>`;
+  }
+
+  const girAvg = girHoles ? (girPutts / girHoles).toFixed(1) : '–';
+
+  document.getElementById('res-content').innerHTML = `
+    <div class="res-card">
+      <h3>Översikt</h3>
+      <div class="res-row"><span class="res-label">Totalt antal slag</span><span class="res-value">${sCount ? totalStrokes : '–'}</span></div>
+      <div class="res-row"><span class="res-label">Resultat +/−</span><span class="res-value">${diffStr}</span></div>
+      <div class="res-row"><span class="res-label">Fairwayträffar</span><span class="res-value">${fairCount} (${fairPct}%)</span></div>
+      <div class="res-row"><span class="res-label">Greenträffar</span><span class="res-value">${greenCount} (${greenPct}%)</span></div>
+      <div class="res-row"><span class="res-label">Totalt antal puttar</span><span class="res-value">${pCount ? totalPutts : '–'}</span></div>
+      <div class="res-row"><span class="res-label">Total puttlängd</span><span class="res-value">${totalPlangd ? Math.round(totalPlangd) : '–'}</span></div>
+      <div class="res-row"><span class="res-label">Puttar/hål med green</span><span class="res-value">${girAvg}</span></div>
+    </div>
+    ${freqHTML('Utslag', freqUtslag)}
+    ${freqHTML('Inspel', freqInspel)}
+    ${freqHTML('I hål', freqIhal)}
+  `;
+}
+
+// --- Tabs ---
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'scorekort') { syncMeta(); syncScorecard(); }
+    if (btn.dataset.tab === 'resultat') buildResultat();
+  });
+});
+
+document.querySelectorAll('#tab-setup input').forEach(inp => inp.addEventListener('input', syncMeta));
+document.getElementById('s-date').valueAsDate = new Date();
+buildScorecard();
+syncMeta();
+</script>
+</body>
+</html>
