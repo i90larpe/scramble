@@ -1,6 +1,6 @@
 {
   "name": "Golf Scorekort",
-  "short_name": "Scorekort",
+  "short_name": "Scramble",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1a472a",
